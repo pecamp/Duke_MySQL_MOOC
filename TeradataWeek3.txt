@@ -1,0 +1,205 @@
+# Exercise 1: (a) Use COUNT and DISTINCT to determine how many distinct skus there are in pairs of the
+skuinfo, skstinfo, and trnsact tables. Which skus are common to pairs of tables, or unique to specific
+tables?
+
+SELECT COUNT(DISTINCT a.sku)
+FROM skuinfo a JOIN skstinfo b
+ON a.sku = b.sku;
+
+# 760212
+
+SELECT COUNT(DISTINCT a.sku)
+FROM skuinfo a JOIN trnsact c
+ON a.sku = c.sku;
+# 714499
+
+SELECT COUNT(DISTINCT b.sku)
+FROM skstinfo b JOIN trnsact c
+ON b.sku = c.sku;
+#542513
+
+# (b) Use COUNT to determine how many instances there are of each sku associated with each store in the
+skstinfo table and the trnsact table? 
+
+SELECT sku, store, COUNT(sku) AS NumSKUs
+FROM skstinfo 
+GROUP BY sku, store
+ORDER BY NumSKUs DESC;
+
+# Max 1 NumSKUs - unique combination of SKU and store
+
+SELECT sku, store, COUNT(sku) AS NumSKUs
+FROM trnsact 
+GROUP BY sku, store
+ORDER BY NumSKUs DESC;
+
+# Max 7933 NumSKUs at SKU 4628597504 STORE 504
+
+# Exercise 2: (a) Use COUNT and DISTINCT to determine how many distinct stores there are in the
+strinfo, store_msa, skstinfo, and trnsact tables. 
+
+SELECT COUNT(DISTINCT store)
+FROM strinfo;
+
+#453
+
+SELECT COUNT(DISTINCT store)
+FROM store_msa;
+
+#333
+
+SELECT COUNT(DISTINCT store)
+FROM skstinfo;
+
+#357
+
+SELECT COUNT(DISTINCT store)
+FROM trnsact;
+
+#332
+
+# (b) Which stores are common to all four tables, or unique to specific tables? 
+
+# Since skstinfo has the most unique stores, we join skstinfo first.
+
+SELECT a.store
+FROM strinfo a 
+  LEFT JOIN skstinfo b 
+    ON a.store = b.store
+  LEFT JOIN trnsact c 
+    ON a.store = c.store
+  LEFT JOIN store_msa d
+    ON c.store = d.store;
+
+# Examine some of the rows in the trnsact table that are not in the skstinfo table;
+can you find any common features that could explain why the cost information is missing? 
+
+SELECT * 
+FROM trnsact t 
+  LEFT JOIN skstinfo s
+    ON t.sku=s.sku AND t.store = s.store
+WHERE s.sku IS NULL 
+
+# Exercise 4: Although we can’t complete all the analyses we’d like to on Dillard’s profit, we can look at
+general trends. What is Dillard’s average profit per day? 
+
+SELECT SUM(t.amt-s.cost)/COUNT(DISTINCT t.saledate) AS AvgProfit
+FROM trnsact t LEFT JOIN skstinfo s
+ON t.sku = s.sku AND t.store = s.store
+WHERE t.stype = 'P';
+
+# 1527903.46
+
+# If you are calculating the average profit per day correctly, you will find that the average profit per day from
+register 640 is $10,779.20.
+
+SELECT SUM(t.amt-s.cost)/COUNT(DISTINCT t.saledate) AS AvgProfit
+FROM trnsact t LEFT JOIN skstinfo s
+ON t.sku = s.sku AND t.store = s.store
+WHERE t.stype = 'P' AND register = '640';
+
+# Correct: 10779.20
+
+# Exercise 5: On what day was the total value (in $) of returned goods the greatest? On what day was the
+total number of individual returned items the greatest? 
+
+SELECT saledate, SUM(amt) AS TotalSum
+FROM trnsact
+WHERE stype = 'R'
+GROUP BY saledate
+ORDER BY TotalSum DESC;
+
+# 04/12/27 - $3030259.76
+
+SELECT saledate, SUM(quantity) AS TotalQuantity
+FROM trnsact
+WHERE stype = 'R'
+GROUP BY saledate
+ORDER BY TotalQuantity DESC;
+
+# 04/12/27 - 82512
+
+# A few days after Christmas
+
+# Exercise 6: What is the maximum price paid for an item in our database? What is the minimum price
+paid for an item in our database? 
+
+SELECT max(amt)
+FROM trnsact
+WHERE stype = 'P';
+
+SELECT min(amt)
+FROM trnsact
+WHERE stype = 'P';
+
+# Max: $6017.00 - Min: $0.00
+
+# Exercise 7: How many departments have more than 100 brands associated with them, and what are their
+descriptions? 
+
+SELECT s.dept, d.deptdesc, COUNT(brand) AS NumBrands
+FROM skuinfo s LEFT JOIN deptinfo d
+ON s.dept = d.dept
+GROUP BY s.dept, d.deptdesc
+HAVING NumBrands > 100
+ORDER BY NumBrands DESC;
+
+# 60 rows to this table
+
+Exercise 8: Write a query that retrieves the department descriptions of each of the skus in the skstinfo
+table. 
+
+SELECT a.sku, b.dept, c.deptdesc
+FROM skstinfo a LEFT JOIN skuinfo b
+ON a.sku = b.sku
+LEFT JOIN deptinfo c
+ON b.dept = c.dept;
+
+# If you have written your query correctly, you will find that the department description for sku #5020024 is
+“LESLIE”
+
+SELECT TOP 1 a.sku, b.dept, c.deptdesc
+FROM skstinfo a LEFT JOIN skuinfo b
+ON a.sku = b.sku
+LEFT JOIN deptinfo c
+ON b.dept = c.dept
+WHERE a.sku = 5020024;
+
+# The answer is "LESLIE"
+
+# Exercise 9: What department (with department description), brand, style, and color had the greatest total
+value of returned items? 
+
+SELECT TOP 1 s.dept, d.deptdesc, s.brand, s.style, s.color, SUM(t.amt) as SumAmt
+FROM trnsact t LEFT JOIN skuinfo s
+ON t.sku = s.sku
+LEFT JOIN deptinfo d
+ON s.dept = d.dept
+WHERE t.stype = 'R'
+GROUP BY s.dept, d.deptdesc, s.brand, s.style, s.color
+ORDER BY SumAmt DESC;
+
+# Output: 4505 POLOMEN POLO FAS 4GZ 782633 U KHAKI 216633.59
+
+# If you have written your query correctly, you will find that the department with the 5th highest total value of
+returned items is #2200 with a department description of “CELEBRT”, a brand of “LANCOME”, a style of
+“1042”, a color of “00-NONE”, and a total value of returned items of $177,142.50.
+
+# 2200 CELEBRT LANCOME 1042 00-NONE 177142.50
+
+# Exercise 10: In what state and zip code is the store that had the greatest total revenue during the time
+period monitored in our dataset? 
+
+SELECT TOP 10 s.state, s.city, s.zip, SUM(t.amt) as SumAmt
+FROM trnsact t LEFT JOIN strinfo s
+ON t.store = s.store
+WHERE t.stype = 'P'
+GROUP BY s.state, s.city, s.zip
+ORDER BY SumAmt DESC;
+
+# Output: LA 70002 24171426.58
+
+# If you have written your query correctly, you will find that the department with the 10th highest total revenue is
+in Hurst, TX. 	
+
+# Output 10th row: TX HURST 76053 17740181.20
